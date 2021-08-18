@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# Download genov data from basespace, format and share it through OneDrive for downstream analysis
+# Modified by Rodrigo Guarischi Sousa on Aug 18, 2021
+# version 0.2
+
+### PREAMBLE ###################################################################################### 
+
+# Settings for environment 
+
+### FUNCTIONS #####################################################################################
+
+usage() { 
+    message="\n";
+    message+=" Usage: genov_format_data -p <project_id>\n\n";
+    message+=" Options:\n";
+    message+=" \t-p\tProject ID on basespace\n";
+    echo -e "${message}" >&2;
+    exit 1;
+    }
+
+### DATA ANALYSIS #################################################################################
+
+while getopts ":p:" opt; do
+    case ${opt} in
+        p)
+            project_id=${OPTARG}
+            ;;
+        h)
+            usage
+            ;;
+        *)
+	    echo -e "\n ERROR: Invalid parameters -${OPTARG}" >&2;
+            usage
+            ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+
+# Checks if an BAM file has being provided
+if [ -z "${project_id}"  ]; then
+    echo -e "\n ERROR: A project_id must be provided" >&2;
+    usage
+fi
+
+# Connect to basespa and get run name
+run_name=$(bs get project -i ${project_id} --template='{{.Name}}');
+
+# Store all files inside a subdirectory named ./runs/<run_name>/
+basefolder="./runs/${run_name}";
+
+# Create folder to store all data and temporary folder
+temp_data_folder="${basefolder}/temp_data_folder";
+mkdir -p ${temp_data_folder};
+raw_data_per_sample_folder="${basefolder}/raw_data_per_sample";
+mkdir -p ${raw_data_per_sample_folder};
+
+# Download FASTA and VCF files from BaseSpace
+bs download project -i ${project_id} -o ${temp_data_folder}/ --extension=zip;
+
+# Copy all zip files to raw_data_per_sample folder
+cp ${temp_data_folder}/*/*.zip ${raw_data_per_sample_folder};
+
+# Loop over folders extracting files for downstream processing
+for zip_file in $(ls ${temp_data_folder}/*/*zip); do
+  zip_file_dirname=$(dirname ${zip_file}); 
+  unzip ${zip_file} -d ${zip_file_dirname}; 
+done
+ 
+# Create 2 files to store consensus_multifasta files. 
+# One with only QC passed samples and another with all samples
+consensus_multifasta_passed_qc="${basefolder}/${run_name}.consensus_multifasta_passed_qc_samples.fa";
+consensus_multifasta_all="${basefolder}/${run_name}.consensus_multifasta_all_samples.fa";
+
+consensus_vcf_passed_qc="${temp_data_folder}/consensus_vcf_passed_qc_samples.txt";
+consensus_vcf_all="${temp_data_folder}/consensus_vcf_all_samples.txt";
+
+# Create 2 empty files
+echo '' > ${consensus_multifasta_passed_qc};
+echo '' > ${consensus_multifasta_all};
+
+# Loop over files to get which samples had "passed_qc" or "fail" QC status 
+for lineage_report_file in $(ls ${temp_data_folder}/*/consensus/*.lineage_report.csv); do
+  
+  consensus_dir=$(dirname ${lineage_report_file});
+  sample_name=$(basename ${lineage_report_file} | cut -f 1 -d.);
+  qc_status=$(tail -n 1 ${lineage_report_file} | cut -f 12 -d,); 
+
+  if [[ "${qc_status}" == "passed_qc" ]]; then
+    cat "${consensus_dir}/${sample_name}.consensus_hard_masked_sequence.fa" >> ${consensus_multifasta_passed_qc};
+    echo -e "${consensus_dir}/${sample_name}.consensus_filtered_variants.vcf.gz" >> ${consensus_vcf_passed_qc};
+  fi
+
+  cat "${consensus_dir}/${sample_name}.consensus_hard_masked_sequence.fa" >> ${consensus_multifasta_all};
+  echo -e "${consensus_dir}/${sample_name}.consensus_filtered_variants.vcf.gz" >> ${consensus_vcf_all};
+
+done
+
+# Merge consensus_filtered_variants.vcf.gz files 
+bcftools merge --file-list ${consensus_vcf_passed_qc} -0 -O z -o ${basefolder}/${run_name}.consensus_filtered_variants_passed_qc_samples.vcf.gz
+bcftools index ${basefolder}/${run_name}.consensus_filtered_variants_passed_qc_samples.vcf.gz
+
+bcftools merge --file-list ${consensus_vcf_passed_qc} -0 -O z -o ${basefolder}/${run_name}.consensus_filtered_variants_all_samples.vcf.gz
+bcftools index ${basefolder}/${run_name}.consensus_filtered_variants_all_samples.vcf.gz
+
+# Delete temporary folder to free space
+rm -rf ${temp_data_folder};
+
