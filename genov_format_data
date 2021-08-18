@@ -77,8 +77,8 @@ consensus_vcf_passed_qc="${temp_data_folder}/consensus_vcf_passed_qc_samples.txt
 consensus_vcf_all="${temp_data_folder}/consensus_vcf_all_samples.txt";
 
 # Create 2 empty files
-echo '' > ${consensus_multifasta_passed_qc};
-echo '' > ${consensus_multifasta_all};
+touch ${consensus_multifasta_passed_qc};
+touch ${consensus_multifasta_all};
 
 # Loop over files to get which samples had "passed_qc" or "fail" QC status 
 for lineage_report_file in $(ls ${temp_data_folder}/*/consensus/*.lineage_report.csv); do
