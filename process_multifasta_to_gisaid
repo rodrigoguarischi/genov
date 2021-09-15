@@ -17,15 +17,16 @@ import argparse
 
 ### FUNCTIONS #####################################################################################
 
-# Turns the input key file into a tuple. May be memory intensive
+# Turns the input key file into a dictionary. May be memory intensive
 def getKeys(keyFile):
 
     with open(keyFile, "r") as kfh:
-        keys = []
+        keys = {}
         for line in kfh:
             line = line.rstrip("\n")
             line = line.lstrip(">")
-            keys.append(line)
+            lineSplit = line.split("\t")
+            keys.update({lineSplit[0]:lineSplit[1]})
 
     return keys
 
@@ -88,26 +89,30 @@ def main():
     if args.verbose is not False:
         if args.invert is False:
             print('Fetching the following keys from: ' + inFile)
-            for key in keys:
-                print(key)
+            for key in keys.keys():
+                print( key )
         else:
             print('Ignoring the following keys, and retreiving everything else from: ' + inFile)
-            for key in keys:
-                print(key)
-
+            for key in keys.keys():
+                print( key )
+    
     # For each sequence in the multifasta, check if it's in the keys[] tuple. If so, print it out:
     for seq in SeqIO.parse(inFile, 'fasta'):
         if args.invert is False:
+            print("Processing seqID: " + seq.id)
             if seq.id in keys:
-                seq.id = "NOVOBLA"
-                seq.description = "NOVOBLA"
-                #print(seq.id)
+                seq.description = keys[seq.id]
+                seq.id = keys[seq.id]
                 print(seq.format("fasta"))
-            if args.outfile is not None:
-                SeqIO.write(seq, outFile, "fasta")
+                if args.outfile is not None:
+                    SeqIO.write(seq, outFile, "fasta")
+            else:
+                print("Could not find id: " + seq.id)
         else:
     # If the --invert/-i flag is given, print all fastas NOT listed in the keyfile
             if seq.id not in keys:
+                seq.description = keys[seq.id]
+                seq.id = keys[seq.id]
                 print(seq.format("fasta"))
             if args.outfile is not None:
                 SeqIO.write(seq, outFile, "fasta")
