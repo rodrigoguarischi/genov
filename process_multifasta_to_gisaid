@@ -14,7 +14,6 @@ import sys
 import traceback
 import warnings
 import argparse
-import sys
 import os
 import shutil
 
@@ -35,37 +34,35 @@ def getKeys(keyFile):
 
 # Takes a list of strings in a text file (one per line) and retreives them and their sequences from a provided multifasta
 def main():
+    
     # Parse arguments from the commandline:
-    try:
-        parser = argparse.ArgumentParser(description='Retrieve one or more fastas from a given multifasta.')
-        parser.add_argument(
-            '-f',
-            '--fasta',
-            action='store',
-            required=True,
-            help='The multifasta to search.')
-        parser.add_argument(
-            '-k',
-            '--keys',
-            action='store',
-            required=True,
-            help='A 2-column file with format "<CURRENT_ID><tab><NEW_ID>" to search the multifasta for. Entries should be one per line and CURRENT_ID must be an exact match.')
-        parser.add_argument(
-            '-o',
-            '--outdir',
-            action='store',
-            default=None,
-            help='Output dir where all fasta files should be written. This folder will be compressed on a ZIP in the end of processing.')
-        parser.add_argument(
-            '-v',
-            '--verbose',
-            action='store_true',
-            help='Set whether to print the key list out before the fasta sequences. Useful for debugging.')
-        args = parser.parse_args()
-
-    except:
-        print("An exception occured with argument parsing. Check your provided options.")
-        traceback.print_exc()
+    parser = argparse.ArgumentParser(description='Retrieve one or more fastas from a given multifasta, change sequence IDs and save as individual fasta files.')
+    parser.add_argument(
+        '-f',
+        '--fasta',
+        action='store',
+        required=True,
+        help='The multifasta to search.')
+    parser.add_argument(
+        '-k',
+        '--keys',
+        action='store',
+        required=True,
+        help='A 2-column file with format "<CURRENT_ID><tab><NEW_ID>" to search the multifasta for. Entries should be one per line and CURRENT_ID must be an exact match.')
+    parser.add_argument(
+        '-o',
+        '--outdir',
+        action='store',
+        required=True,
+        help='Output dir where all fasta files should be written. This folder will be compressed on a ZIP in the end of processing.')
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        action='store_true',
+        help='Set whether to print the key list out before the fasta sequences. Useful for debugging.')
+    
+    # Parse argument list
+    args = parser.parse_args()
 
     # Rename args to enable them to be provided to the getKeys function:
     keyFile = args.keys
