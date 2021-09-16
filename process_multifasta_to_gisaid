@@ -2,7 +2,7 @@
 
 # This script is used to reformat multifasta and put it according to gisaid specs.
 # Additionally, this script is intended to filter which samples should be included on the final multifasta
-# Modified by Rodrigo Guarischi Sousa on Sep 14, 2021
+# Modified by Rodrigo Guarischi Sousa on Sep 15, 2021
 # version 0.1
 
 ### PREAMBLE ###################################################################################### 
@@ -14,6 +14,9 @@ import sys
 import traceback
 import warnings
 import argparse
+import sys
+import os
+import shutil
 
 ### FUNCTIONS #####################################################################################
 
@@ -46,23 +49,18 @@ def main():
             '--keys',
             action='store',
             required=True,
-            help='A file of header strings to search the multifasta for. Must be exact. Must be one per line.')
+            help='A 2-column file with format "<CURRENT_ID><tab><NEW_ID>" to search the multifasta for. Entries should be one per line and CURRENT_ID must be an exact match.')
         parser.add_argument(
             '-o',
-            '--outfile',
+            '--outdir',
             action='store',
             default=None,
-            help='Output file to store the new fasta sequences in. Just prints to screen by default.')
+            help='Output dir where all fasta files should be written. This folder will be compressed on a ZIP in the end of processing.')
         parser.add_argument(
             '-v',
             '--verbose',
             action='store_true',
             help='Set whether to print the key list out before the fasta sequences. Useful for debugging.')
-        parser.add_argument(
-            '-i',
-            '--invert',
-            action='store_true',
-            help='Invert the search, and retrieve all sequences NOT specified in the keyfile.')
         args = parser.parse_args()
 
     except:
@@ -72,7 +70,7 @@ def main():
     # Rename args to enable them to be provided to the getKeys function:
     keyFile = args.keys
     inFile = args.fasta
-    outFile = args.outfile
+    outDir = args.outdir
 
 ### DATA ANALYSIS #################################################################################
 
@@ -87,34 +85,36 @@ def main():
         keys = args.keys
 
     if args.verbose is not False:
-        if args.invert is False:
-            print('Fetching the following keys from: ' + inFile)
-            for key in keys.keys():
-                print( key )
-        else:
-            print('Ignoring the following keys, and retreiving everything else from: ' + inFile)
-            for key in keys.keys():
-                print( key )
+        print('Fetching the following keys from: ' + inFile)
+        for key in keys.keys():
+            print( key )
     
+    # Checks if output directory exists 
+    if not os.path.exists(outDir):
+        os.makedirs(outDir)
+    else:
+        sys.exit("\n\tERROR: Folder '" + outDir + "' exists. Delete folder manually or choose another output folder name before continue.\n")
+
     # For each sequence in the multifasta, check if it's in the keys[] tuple. If so, print it out:
     for seq in SeqIO.parse(inFile, 'fasta'):
-        if args.invert is False:
-            if seq.id in keys:
-                genovID = seq.id
-                seq.id = keys[genovID]
-                seq.description = keys[genovID]
-                # print(seq.format("fasta"))
-                SeqIO.write(seq, "./tmp/outfiles/" + genovID + ".fasta", "fasta")
-            else:
-                print("Could not find id: " + seq.id)
+        if seq.id in keys:
+            genovID = seq.id
+            seq.id = keys[genovID]
+            seq.description = keys[genovID]
+            # print(seq.format("fasta"))
+            SeqIO.write(seq, "./" + outDir + "/" + genovID + ".fasta", "fasta")
         else:
-    # If the --invert/-i flag is given, print all fastas NOT listed in the keyfile
-            if seq.id not in keys:
-                seq.description = keys[seq.id]
-                seq.id = keys[seq.id]
-                print(seq.format("fasta"))
-            if args.outfile is not None:
-                SeqIO.write(seq, outFile, "fasta")
+            print("Could not find id: " + seq.id)
+    
+    # Compress directory with fasta files
+    shutil.make_archive(outDir, 'zip', outDir)
+    
+    # Delete folder to leave only the zip file
+    try:
+        shutil.rmtree(outDir)
+    except OSError as e:
+        print("Error: %s - %s." % (e.filename, e.strerror))
+    # os.rmdir(outDir)
 
 if __name__ == "__main__":
     main()
