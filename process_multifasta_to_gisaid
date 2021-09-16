@@ -75,27 +75,26 @@ def main():
 ### DATA ANALYSIS #################################################################################
 
 # Extract fasta files by their descriptors stored in a separate file.
-# Requires biopython
 
-# Main code:
-    # Call getKeys() to create the tuple of keys from the provided file:
-    try:
-        keys = getKeys(keyFile)
-    except IOError:
-        keys = args.keys
-
-    if args.verbose is not False:
-        print('Fetching the following keys from: ' + inFile)
-        for key in keys.keys():
-            print( key )
-    
     # Checks if output directory exists 
     if not os.path.exists(outDir):
         os.makedirs(outDir)
     else:
         sys.exit("\n\tERROR: Folder '" + outDir + "' exists. Delete folder manually or choose another output folder name before continue.\n")
 
-    # For each sequence in the multifasta, check if it's in the keys[] tuple. If so, print it out:
+    # Call getKeys() to create the tuple of keys from the provided file:
+    try:
+        keys = getKeys(keyFile)
+    except IOError:
+        keys = args.keys
+    
+    # Verbose option just prints key list
+    if args.verbose is not False:
+        print('Fetching the following keys from: ' + inFile)
+        for key in keys.keys():
+            print( key )
+    
+    # For each sequence in the multifasta, check if it's in the keys dictionary. If so, change sequence ID and save fasta file
     for seq in SeqIO.parse(inFile, 'fasta'):
         if seq.id in keys:
             genovID = seq.id
@@ -106,7 +105,7 @@ def main():
         else:
             print("Could not find id: " + seq.id)
     
-    # Compress directory with fasta files
+    # Compress directory with fasta files to save space
     shutil.make_archive(outDir, 'zip', outDir)
     
     # Delete folder to leave only the zip file
@@ -114,8 +113,6 @@ def main():
         shutil.rmtree(outDir)
     except OSError as e:
         print("Error: %s - %s." % (e.filename, e.strerror))
-    # os.rmdir(outDir)
 
 if __name__ == "__main__":
     main()
-
