@@ -92,15 +92,19 @@ def main():
             print( key )
     
     # For each sequence in the multifasta, check if it's in the keys dictionary. If so, change sequence ID and save fasta file
+    founded_seqs = 0;
+    missing_seqs = 0;
     for seq in SeqIO.parse(inFile, 'fasta'):
         if seq.id in keys:
             genovID = seq.id
             seq.id = keys[genovID]
             seq.description = keys[genovID]
             # print(seq.format("fasta"))
-            SeqIO.write(seq, "./" + outDir + "/" + genovID + ".fasta", "fasta")
+            SeqIO.write(seq, outDir + "/" + genovID + ".fasta", "fasta")
+            founded_seqs+=1
         else:
-            print("Could not find id: " + seq.id)
+            print("  WARNING: Could not find id: " + seq.id)
+            missing_seqs+=1
     
     # Compress directory with fasta files to save space
     shutil.make_archive(outDir, 'zip', outDir)
@@ -110,6 +114,14 @@ def main():
         shutil.rmtree(outDir)
     except OSError as e:
         print("Error: %s - %s." % (e.filename, e.strerror))
+
+    total_seqs_parsed = founded_seqs + missing_seqs
+
+    print("File processing is complete!")
+    print("\nSUMMARY:")
+    print(" A total of " + str(total_seqs_parsed) + " were parsed on input file: " + inFile )
+    print(" There were " + str(founded_seqs) + " were successfully found in KEYS database and had IDs converted ({:.2f}".format(founded_seqs/total_seqs_parsed*100) +"%)")
+    print(" There were " + str(missing_seqs) + " were missing in the KEYS database ({:.2f}".format(missing_seqs/total_seqs_parsed*100) + "%)") 
 
 if __name__ == "__main__":
     main()
