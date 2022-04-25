@@ -85,9 +85,9 @@ for lineage_report_file in $(ls ${temp_data_folder}/*/consensus/*.lineage_report
   
   consensus_dir=$(dirname ${lineage_report_file});
   sample_name=$(basename ${lineage_report_file} | cut -f 1 -d.);
-  qc_status=$(tail -n 1 ${lineage_report_file} | cut -f 12 -d,); 
+  qc_status=$(tail -n 1 ${lineage_report_file} | cut -f 14 -d,); 
 
-  if [[ "${qc_status}" == "passed_qc" ]]; then
+  if [[ "${qc_status}" == "pass" ]]; then
     cat "${consensus_dir}/${sample_name}.consensus_hard_masked_sequence.fa" >> ${consensus_multifasta_passed_qc};
     echo -e "${consensus_dir}/${sample_name}.consensus_filtered_variants.vcf.gz" >> ${consensus_vcf_passed_qc};
   fi
